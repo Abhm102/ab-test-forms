@@ -620,6 +620,28 @@ font-family:monospace;color:#7c6dfa;z-index:999;">
 const SHEET_URL = "https://script.google.com/macros/s/AKfycbwp9L0qhkUofYUHdMnWRIvl5LlH1warNPWTy9dx1oDvKZhgAS4ClMj2vtzpXCV20K_z/exec";
 // =====================================================================
 
+let startTime = Date.now();
+
+function getElapsedTime() {
+  const ms = Date.now() - startTime;
+  const totalSec = Math.floor(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  return `${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+
+setInterval(() => {
+  const el = document.getElementById("timer");
+  if (el) el.textContent = getElapsedTime();
+}, 1000);
+
+
+
+  
+
+
+
+  
 function validate() {
   const id = document.getElementById('studentId').value.trim();
   const level = document.querySelector('input[name="level"]:checked');
@@ -652,6 +674,9 @@ async function submitForm() {
     errEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
+
+  const duration = getElapsedTime();
+  
   errEl.style.display = 'none';
 
   const btn = document.getElementById('submitBtn');
@@ -664,6 +689,7 @@ async function submitForm() {
   const payload = {
     group: "A",
     timestamp: new Date().toISOString(),
+    duration: duration,
     studentId: document.getElementById('studentId').value.trim(),
     level: document.querySelector('input[name="level"]:checked').value,
     experience: document.querySelector('input[name="exp"]:checked').value,
@@ -673,6 +699,7 @@ async function submitForm() {
     lines2: document.getElementById('lines2').value.trim(),
     count2: document.getElementById('count2').value,
     explain2: document.getElementById('explain2').value.trim(),
+    
   };
 
   try {
