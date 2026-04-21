@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Code Review — Group B</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0f0a;
+    --surface: #0f160f;
+    --border: #1a2a1a;
+    --border-bright: #243224;
+    --accent: #4ade80;
+    --accent-dim: rgba(74,222,128,0.1);
+    --accent-glow: rgba(74,222,128,0.25);
+    --text: #e8f0e8;
+    --muted: #6b806b;
+    --red: #f87171;
+    --red-dim: rgba(248,113,113,0.1);
+    --font-mono: 'IBM Plex Mono', monospace;
+    --font-sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(74,222,128,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(74,222,128,0.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  .header {
+    border-bottom: 1px solid var(--border-bright);
+    padding-bottom: 2rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .group-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-glow);
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    border-radius: 4px;
+    margin-bottom: 1.2rem;
+  }
+
+  .group-tag::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  h1 {
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin-bottom: .5rem;
+    line-height: 1.1;
+  }
+
+  .subtitle { color: var(--muted); font-size: .95rem; max-width: 560px; }
+
+  .section {
+    margin-bottom: 2.5rem;
+    animation: fadeUp .5s ease both;
+  }
+
+  @keyframes fadeUp {
+    from { opacity:0; transform: translateY(16px); }
+    to   { opacity:1; transform: translateY(0); }
+  }
+
+  .section:nth-child(2) { animation-delay: .05s }
+  .section:nth-child(3) { animation-delay: .1s }
+  .section:nth-child(4) { animation-delay: .15s }
+  .section:nth-child(5) { animation-delay: .2s }
+  .section:nth-child(6) { animation-delay: .25s }
+  .section:nth-child(7) { animation-delay: .3s }
+
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 1rem;
+  }
+
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .section-label span {
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    border: 1px solid var(--accent-glow);
+  }
+
+  .code-card {
+    background: var(--surface);
+    border: 1px solid var(--border-bright);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: rgba(255,255,255,0.02);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .code-dots { display: flex; gap: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-r { background: #ff5f57; }
+  .dot-y { background: #ffbd2e; }
+  .dot-g { background: #28c840; }
+  .code-filename { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+
+  .code-body { padding: 1.2rem 0; overflow-x: auto; }
+
+  .code-line {
+    display: flex;
+    gap: 0;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.9;
+    padding: 0 1rem;
+    transition: background .15s;
+  }
+  .code-line:hover { background: rgba(74,222,128,0.04); }
+
+  .ln { color: var(--border-bright); user-select: none; min-width: 36px; text-align: right; margin-right: 20px; font-size: 11px; padding-top: 2px; }
+  .lc { color: #c9d1d9; white-space: pre; }
+  .kw { color: #ff79c6; }
+  .str { color: #f1fa8c; }
+  .num { color: #bd93f9; }
+  .fn  { color: #50fa7b; }
+  .cm  { color: #6272a4; }
+  .op  { color: #ff79c6; }
+  .var { color: #8be9fd; }
+  .key { color: #ffb86c; }
+
+  .field-group {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: .75rem;
+    transition: border-color .2s;
+  }
+  .field-group:focus-within { border-color: var(--accent-glow); }
+
+  .field-label {
+    font-size: .82rem;
+    font-weight: 500;
+    color: var(--muted);
+    letter-spacing: .04em;
+    margin-bottom: .6rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .req { color: var(--accent); font-size: 12px; }
+  .field-hint { font-size: .75rem; color: var(--muted); margin-top: .4rem; opacity: .7; }
+
+  input[type="text"],
+  input[type="number"],
+  textarea {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-bright);
+    border-radius: 5px;
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: .9rem;
+    padding: .7rem .9rem;
+    outline: none;
+    transition: border-color .2s, background .2s;
+  }
+
+  input[type="text"]:focus,
+  input[type="number"]:focus,
+  textarea:focus {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
+
+  .radio-grid { display: flex; gap: .6rem; flex-wrap: wrap; }
+
+  .radio-opt { position: relative; }
+  .radio-opt input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .radio-opt label {
+    display: block;
+    padding: .55rem 1.1rem;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-bright);
+    border-radius: 5px;
+    font-size: .85rem;
+    cursor: pointer;
+    transition: all .15s;
+    color: var(--muted);
+  }
+  .radio-opt input:checked + label { background: var(--accent-dim); border-color: var(--accent); color: var(--text); }
+  .radio-opt label:hover { border-color: var(--muted); color: var(--text); }
+
+  .phase-divider {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 2rem 0;
+    color: var(--muted);
+    font-size: .75rem;
+    font-family: var(--font-mono);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+  .phase-divider::before, .phase-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* ---- CHECKLIST INTERVENTION ---- */
+  .checklist-banner {
+    background: linear-gradient(135deg, rgba(74,222,128,0.07), rgba(74,222,128,0.03));
+    border: 1px solid var(--accent-glow);
+    border-radius: 10px;
+    padding: 1.75rem;
+    margin: 1.5rem 0;
+  }
+
+  .checklist-banner .tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .checklist-banner .tag::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .checklist-banner h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: .5rem;
+  }
+
+  .checklist-banner .warning-text {
+    font-size: .9rem;
+    color: var(--muted);
+    margin-bottom: 1.25rem;
+    padding: .75rem 1rem;
+    background: rgba(74,222,128,0.06);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 4px 4px 0;
+    font-style: italic;
+  }
+
+  .checklist-items {
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .checklist-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: .75rem 1rem;
+    background: rgba(0,0,0,.2);
+    border: 1px solid var(--border-bright);
+    border-radius: 6px;
+  }
+
+  .check-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-glow);
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .check-content strong {
+    display: block;
+    font-size: .875rem;
+    font-weight: 600;
+    margin-bottom: 2px;
+    color: var(--text);
+  }
+
+  .check-content p { font-size: .8rem; color: var(--muted); line-height: 1.5; }
+
+  .confirm-check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: .75rem 1rem;
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-glow);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: .875rem;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .confirm-check input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  /* Submit */
+  .submit-area { margin-top: 2rem; }
+
+  .submit-btn {
+    width: 100%;
+    padding: 1rem;
+    background: var(--accent);
+    color: #0a0f0a;
+    border: none;
+    border-radius: 6px;
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: .02em;
+    transition: opacity .2s, transform .1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .submit-btn:hover { opacity: .9; }
+  .submit-btn:active { transform: scale(.99); }
+  .submit-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  .success-screen {
+    display: none;
+    text-align: center;
+    padding: 4rem 2rem;
+    animation: fadeUp .5s ease;
+  }
+
+  .success-icon {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: var(--accent-dim);
+    border: 2px solid var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    margin: 0 auto 1.5rem;
+  }
+
+  .success-screen h2 { font-size: 1.6rem; margin-bottom: .5rem; }
+  .success-screen p { color: var(--muted); }
+
+  .error-msg {
+    display: none;
+    background: var(--red-dim);
+    border: 1px solid var(--red);
+    color: var(--red);
+    border-radius: 6px;
+    padding: .75rem 1rem;
+    font-size: .85rem;
+    margin-top: .75rem;
+  }
+
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(0,0,0,.3);
+    border-top-color: #0a0f0a;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    display: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .info-box {
+    background: rgba(74,222,128,0.06);
+    border: 1px solid var(--accent-glow);
+    border-radius: 6px;
+    padding: .9rem 1.1rem;
+    font-size: .82rem;
+    color: var(--muted);
+    margin-bottom: 1.5rem;
+    line-height: 1.7;
+  }
+  .info-box strong { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="wrap" id="main-form">
+
+  <header class="header section">
+    <div class="group-tag">Group B — Experimental</div>
+    <h1>AI Code<br>Review Session</h1>
+    <p class="subtitle">You will review two AI-generated code snippets and identify any errors, bugs, or logical problems.</p>
+  </header>
+
+  <div class="info-box section">
+    <strong>Instructions:</strong> Read each code snippet carefully. List the line numbers where you find errors, estimate the total count, and briefly explain what the problem is. Complete the entire form in one sitting without discussing it with others.
+  </div>
+
+  <!-- PART 1: Participant Info -->
+  <div class="section">
+    <div class="section-label"><span>01</span> Participant info</div>
+
+    <div class="field-group">
+      <div class="field-label">Your name or student ID <span class="req">*</span></div>
+      <input type="text" id="studentId" placeholder="e.g. Mohamed A. or Student-07" required>
+    </div>
+
+    <div class="field-group">
+      <div class="field-label">Programming level <span class="req">*</span></div>
+      <div class="radio-grid">
+        <div class="radio-opt"><input type="radio" name="level" id="l1" value="Beginner"><label for="l1">Beginner</label></div>
+        <div class="radio-opt"><input type="radio" name="level" id="l2" value="Intermediate"><label for="l2">Intermediate</label></div>
+        <div class="radio-opt"><input type="radio" name="level" id="l3" value="Advanced"><label for="l3">Advanced</label></div>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <div class="field-label">Do you have prior programming experience? <span class="req">*</span></div>
+      <div class="radio-grid">
+        <div class="radio-opt"><input type="radio" name="exp" id="e1" value="Yes"><label for="e1">Yes</label></div>
+        <div class="radio-opt"><input type="radio" name="exp" id="e2" value="No"><label for="e2">No</label></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PART 2: Code 1 -->
+  <div class="section">
+    <div class="section-label"><span>02</span> Code review — Module 1</div>
+
+    <div class="code-card">
+      <div class="code-header">
+        <div class="code-dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+        <div class="code-filename">module_01.py — AI generated</div>
+        <div style="font-size:10px;color:var(--muted);font-family:var(--font-mono)">Python 3</div>
+      </div>
+      <div class="code-body">
+        <div class="code-line"><span class="ln">1</span><span class="lc"><span class="var">students</span> <span class="op">=</span> [</span></div>
+        <div class="code-line"><span class="ln">2</span><span class="lc">    {<span class="str">"name"</span>: <span class="str">"Fatima"</span>,  <span class="str">"score"</span>: <span class="num">15.6</span>, <span class="str">"gender"</span>: <span class="str">"F"</span>},</span></div>
+        <div class="code-line"><span class="ln">3</span><span class="lc">    {<span class="str">"name"</span>: <span class="str">"Youssef"</span>, <span class="str">"score"</span>: <span class="num">17.0</span>, <span class="str">"gender"</span>: <span class="str">"M"</span>},</span></div>
+        <div class="code-line"><span class="ln">4</span><span class="lc">    {<span class="str">"name"</span>: <span class="str">"Zineb"</span>,   <span class="str">"score"</span>: <span class="num">18.4</span>, <span class="str">"gender"</span>: <span class="str">"F"</span>},</span></div>
+        <div class="code-line"><span class="ln">5</span><span class="lc">    {<span class="str">"name"</span>: <span class="str">"Ayoub"</span>,   <span class="str">"score"</span>: <span class="num">12.0</span>, <span class="str">"gender"</span>: <span class="str">"M"</span>}</span></div>
+        <div class="code-line"><span class="ln">6</span><span class="lc">]</span></div>
+        <div class="code-line"><span class="ln">7</span><span class="lc"></span></div>
+        <div class="code-line"><span class="ln">8</span><span class="lc"><span class="var">total</span> <span class="op">=</span> <span class="fn">sum</span>(<span class="var">s</span>[<span class="str">"score"</span>] <span class="kw">for</span> <span class="var">s</span> <span class="kw">in</span> <span class="var">students</span>)</span></div>
+        <div class="code-line"><span class="ln">9</span><span class="lc"><span class="var">avg</span> <span class="op">=</span> <span class="var">total</span> <span class="op">/</span> <span class="fn">len</span>(<span class="var">students</span>)</span></div>
+        <div class="code-line"><span class="ln">10</span><span class="lc"></span></div>
+        <div class="code-line"><span class="ln">11</span><span class="lc"><span class="var">high</span> <span class="op">=</span> []</span></div>
+        <div class="code-line"><span class="ln">12</span><span class="lc"><span class="kw">for</span> <span class="var">s</span> <span class="kw">in</span> <span class="var">students</span>:</span></div>
+        <div class="code-line"><span class="ln">13</span><span class="lc">    <span class="kw">if</span> <span class="var">s</span>[<span class="str">"score"</span>] <span class="op">&gt;</span> <span class="var">avg</span>:</span></div>
+        <div class="code-line"><span class="ln">14</span><span class="lc">        <span class="var">high</span>.<span class="fn">append</span>(<span class="var">s</span>)</span></div>
+        <div class="code-line"><span class="ln">15</span><span class="lc"></span></div>
+        <div class="code-line"><span class="ln">16</span><span class="lc"><span class="kw">for</span> <span class="var">s</span> <span class="kw">in</span> <span class="var">high</span>:</span></div>
+        <div class="code-line"><span class="ln">17</span><span class="lc">    <span class="kw">if</span> <span class="var">s</span>[<span class="str">"score"</span>] <span class="op">&gt;</span> <span class="num">17</span>:</span></div>
+        <div class="code-line"><span class="ln">18</span><span class="lc">        <span class="var">s</span>[<span class="str">"risk_score"</span>] <span class="op">=</span> <span class="num">0.9</span>    <span class="cm"># ← planted error</span></div>
+        <div class="code-line"><span class="ln">19</span><span class="lc"></span></div>
+        <div class="code-line"><span class="ln">20</span><span class="lc"><span class="var">selected</span> <span class="op">=</span> []</span></div>
+        <div class="code-line"><span class="ln">21</span><span class="lc"><span class="kw">for</span> <span class="var">s</span> <span class="kw">in</span> <span class="var">high</span>:</span></div>
+        <div class="code-line"><span class="ln">22</span><span class="lc">    <span class="kw">if</span> <span class="var">s</span>[<span class="str">"gender"</span>] <span class="op">==</span> <span class="str">"M"</span> <span class="kw">or</span> <span class="var">s</span>.<span class="fn">get</span>(<span class="str">"risk_score"</span>, <span class="num">0</span>) <span class="op">&gt;</span> <span class="num">0.8</span>: <span class="cm"># ← planted error</span></div>
+        <div class="code-line"><span class="ln">23</span><span class="lc">        <span class="var">selected</span>.<span class="fn">append</span>(<span class="var">s</span>)</span></div>
+        <div class="code-line"><span class="ln">24</span><span class="lc"></span></div>
+        <div class="code-line"><span class="ln">25</span><span class="lc"><span class="var">best</span> <span class="op">=</span> <span class="fn">sorted</span>(<span class="var">selected</span>, <span class="key">key</span><span class="op">=</span><span class="kw">lambda</span> <span class="var">s</span>: <span class="var">s</span>[<span class="str">"score"</span>])</span></div>
+        <div class="code-line"><span class="ln">26</span><span class="lc"><span class="var">top</span> <span class="op">=</span> <span class="var">best</span>[<span class="num">0</span>]</span></div>
+        <div class="code-line"><span class="ln">27</span><span class="lc"></span></div>
+        <div class="code-line"><span class="ln">28</span><span class="lc"><span class="var">final_score</span> <span class="op">=</span> <span class="var">avg</span> <span class="op">/</span> <span class="fn">len</span>(<span class="var">selected</span>)  <span class="cm"># ← planted error</span></div>
+        <div class="code-line"><span class="ln">29</span><span class="lc"></span></div>
+        <div class="code-line"><span class="ln">30</span><span class="lc"><span class="fn">print</span>(<span class="str">"Top:"</span>, <span class="var">top</span>[<span class="str">"name"</span>], <span class="str">"Final:"</span>, <span class="var">final_score</span>)</span></div>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <div class="field-label">Line numbers where you found errors (comma-separated) <span class="req">*</span></div>
+      <input type="text" id="lines1" placeholder="e.g. 18, 22, 28">
+      <div class="field-hint">Enter the line numbers only, separated by commas. If none, write "none".</div>
+    </div>
+
+    <div class="field-group">
+      <div class="field-label">How many errors do you think you found? <span class="req">*</span></div>
+      <input type="number" id="count1" min="0" max="20" placeholder="0">
+    </div>
+
+    <div class="field-group">
+      <div class="field-label">Explain the main problem(s) you found <span class="req">*</span></div>
+      <textarea id="explain1" placeholder="Describe what the error is and why it's a problem..."></textarea>
+    </div>
+  </div>
+
+  <!-- CHECKLIST INTERVENTION -->
+  <div class="phase-divider">— Intervention —</div>
+
+  <div class="section">
+    <div class="section-label"><span>03</span> Read before continuing</div>
+
+    <div class="checklist-banner">
+      <div class="tag">AI Code Review Checklist</div>
+      <h2>Before reviewing the next code, read this carefully.</h2>
+      <div class="warning-text">
+        "AI-generated code is a draft, not a final answer. Never trust it blindly."
+      </div>
+
+      <div class="checklist-items">
+        <div class="checklist-item">
+          <div class="check-num">1</div>
+          <div class="check-content">
+            <strong>Verify imports and library names</strong>
+            <p>LLMs hallucinate APIs that do not exist. Check every import and every function call against real documentation.</p>
+          </div>
+        </div>
+        <div class="checklist-item">
+          <div class="check-num">2</div>
+          <div class="check-content">
+            <strong>Validate mathematical operations</strong>
+            <p>Re-derive every formula manually. Off-by-one errors, wrong operators, and incorrect aggregations are extremely common.</p>
+          </div>
+        </div>
+        <div class="checklist-item">
+          <div class="check-num">3</div>
+          <div class="check-content">
+            <strong>Check for sensitive attribute bias</strong>
+            <p>Look for variables like gender, age, zip code, or race being used to filter, weight, or rank data unfairly.</p>
+          </div>
+        </div>
+        <div class="checklist-item">
+          <div class="check-num">4</div>
+          <div class="check-content">
+            <strong>Consider edge cases</strong>
+            <p>What happens with empty inputs, zero values, or null fields? LLMs rarely handle edge cases correctly.</p>
+          </div>
+        </div>
+        <div class="checklist-item">
+          <div class="check-num">5</div>
+          <div class="check-content">
+            <strong>Question the logic flow</strong>
+            <p>Does the algorithm actually solve the stated problem? Code can be syntactically valid but logically wrong.</p>
+          </div>
+        </div>
+      </div>
+
+      <label class="confirm-check">
+        <input type="checkbox" id="checklistConfirm">
+        I have read all 5 rules and will apply them to the next code review.
+      </label>
+    </div>
+  </div>
+
+  <div class="phase-divider">— Moving to Code 2 —</div>
+
+  <!-- PART 4: Code 2 -->
+  <div class="section">
+    <div class="section-label"><span>04</span> Code review — Module 2</div>
+
+    <div class="code-card">
+      <div class="code-header">
+        <div class="code-dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+        <div class="code-filename">module_02.py — AI generated</div>
+        <div style="font-size:10px;color:var(--muted);font-family:var(--font-mono)">Python 3</div>
+      </div>
+      <div class="code-body">
+        <div class="code-line"><span class="ln">1</span><span class="lc"><span class="kw">import</span> pandas <span class="kw">as</span> pd</span></div>
+        <div class="code-line"><span class="ln">2</span><span class="lc"><span class="kw">import</span> <span class="var">sys_util_logic</span>          <span class="cm"># ← planted error</span></div>
+        <div class="code-line"><span class="ln">3</span><span class="lc"></span></div>
+        <div class="code-line"><span class="ln">4</span><span class="lc"><span class="kw">def</span> <span class="fn">screen_candidates</span>(<span class="var">candidates_list</span>):</span></div>
+        <div class="code-line"><span class="ln">5</span><span class="lc">    <span class="var">df</span> <span class="op">=</span> pd.<span class="fn">DataFrame</span>(<span class="var">candidates_list</span>)</span></div>
+        <div class="code-line"><span class="ln">6</span><span class="lc"></span></div>
+        <div class="code-line"><span class="ln">7</span><span class="lc">    <span class="var">premium_zones</span> <span class="op">=</span> [<span class="num">10001</span>, <span class="num">10002</span>, <span class="num">10005</span>]</span></div>
+        <div class="code-line"><span class="ln">8</span><span class="lc">    <span class="var">df</span> <span class="op">=</span> <span class="var">df</span>[<span class="var">df</span>[<span class="str">'zip_code'</span>].<span class="fn">isin</span>(<span class="var">premium_zones</span>)]  <span class="cm"># ← planted error</span></div>
+        <div class="code-line"><span class="ln">9</span><span class="lc"></span></div>
+        <div class="code-line"><span class="ln">10</span><span class="lc">    <span class="var">qualified</span> <span class="op">=</span> <span class="var">df</span>[<span class="var">df</span>[<span class="str">'technical_score'</span>] <span class="op">&gt;</span> <span class="num">80</span>]  <span class="cm"># ← planted error</span></div>
+        <div class="code-line"><span class="ln">11</span><span class="lc"></span></div>
+        <div class="code-line"><span class="ln">12</span><span class="lc">    <span class="var">final_selection</span> <span class="op">=</span> <span class="var">qualified</span>.<span class="fn">rank_by_cultural_fit</span>(<span class="key">strategy</span><span class="op">=</span><span class="str">"balanced"</span>)  <span class="cm"># ← planted error</span></div>
+        <div class="code-line"><span class="ln">13</span><span class="lc"></span></div>
+        <div class="code-line"><span class="ln">14</span><span class="lc">    <span class="kw">return</span> <span class="var">final_selection</span></span></div>
+        <div class="code-line"><span class="ln">15</span><span class="lc"></span></div>
+        <div class="code-line"><span class="ln">16</span><span class="lc"><span class="var">candidates</span> <span class="op">=</span> [</span></div>
+        <div class="code-line"><span class="ln">17</span><span class="lc">    {<span class="str">"name"</span>: <span class="str">"Alice"</span>, <span class="str">"zip_code"</span>: <span class="num">10001</span>, <span class="str">"technical_score"</span>: <span class="num">80</span>},</span></div>
+        <div class="code-line"><span class="ln">18</span><span class="lc">    {<span class="str">"name"</span>: <span class="str">"Bob"</span>,   <span class="str">"zip_code"</span>: <span class="num">90210</span>, <span class="str">"technical_score"</span>: <span class="num">95</span>}</span></div>
+        <div class="code-line"><span class="ln">19</span><span class="lc">]</span></div>
+        <div class="code-line"><span class="ln">20</span><span class="lc"><span class="fn">print</span>(<span class="fn">screen_candidates</span>(<span class="var">candidates</span>))</span></div>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <div class="field-label">Line numbers where you found errors (comma-separated) <span class="req">*</span></div>
+      <input type="text" id="lines2" placeholder="e.g. 2, 8, 10, 12">
+      <div class="field-hint">Enter the line numbers only, separated by commas. If none, write "none".</div>
+    </div>
+
+    <div class="field-group">
+      <div class="field-label">How many errors do you think you found? <span class="req">*</span></div>
+      <input type="number" id="count2" min="0" max="20" placeholder="0">
+    </div>
+
+    <div class="field-group">
+      <div class="field-label">Explain the main problem(s) you found <span class="req">*</span></div>
+      <textarea id="explain2" placeholder="Describe what the error is and why it's a problem..."></textarea>
+    </div>
+  </div>
+
+  <!-- Submit -->
+  <div class="section submit-area">
+    <button class="submit-btn" id="submitBtn" onclick="submitForm()">
+      <span id="btnText">Submit my responses</span>
+      <div class="spinner" id="spinner"></div>
+    </button>
+    <div class="error-msg" id="errorMsg"></div>
+    <p style="font-size:.75rem;color:var(--muted);margin-top:.75rem;text-align:center">
+      Your responses are recorded anonymously for academic research only.
+    </p>
+  </div>
+
+</div>
+
+<!-- Success -->
+<div class="wrap success-screen" id="successScreen">
+  <div class="success-icon">✓</div>
+  <h2>Responses submitted!</h2>
+  <p>Thank you for participating. You may now close this tab.</p>
+</div>
+
+<script>
+// =====================================================================
+// CONFIGURATION — paste your Google Apps Script Web App URL here
+// =====================================================================
+const SHEET_URL = "https://script.google.com/macros/s/AKfycbwp9L0qhkUofYUHdMnWRIvl5LlH1warNPWTy9dx1oDvKZhgAS4ClMj2vtzpXCV20K_z/exec";
+// =====================================================================
+
+function validate() {
+  const id = document.getElementById('studentId').value.trim();
+  const level = document.querySelector('input[name="level"]:checked');
+  const exp = document.querySelector('input[name="exp"]:checked');
+  const lines1 = document.getElementById('lines1').value.trim();
+  const count1 = document.getElementById('count1').value;
+  const explain1 = document.getElementById('explain1').value.trim();
+  const checked = document.getElementById('checklistConfirm').checked;
+  const lines2 = document.getElementById('lines2').value.trim();
+  const count2 = document.getElementById('count2').value;
+  const explain2 = document.getElementById('explain2').value.trim();
+
+  if (!id) return "Please enter your name or student ID.";
+  if (!level) return "Please select your programming level.";
+  if (!exp) return "Please answer the experience question.";
+  if (!lines1) return "Please enter line numbers for Code 1 (or write 'none').";
+  if (!count1) return "Please enter how many errors you found in Code 1.";
+  if (!explain1) return "Please explain the problem(s) in Code 1.";
+  if (!checked) return "Please confirm you have read the checklist before continuing.";
+  if (!lines2) return "Please enter line numbers for Code 2 (or write 'none').";
+  if (!count2) return "Please enter how many errors you found in Code 2.";
+  if (!explain2) return "Please explain the problem(s) in Code 2.";
+  return null;
+}
+
+async function submitForm() {
+  const err = validate();
+  const errEl = document.getElementById('errorMsg');
+  if (err) {
+    errEl.textContent = err;
+    errEl.style.display = 'block';
+    errEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  errEl.style.display = 'none';
+
+  const btn = document.getElementById('submitBtn');
+  const btnText = document.getElementById('btnText');
+  const spinner = document.getElementById('spinner');
+  btn.disabled = true;
+  btnText.textContent = 'Sending...';
+  spinner.style.display = 'block';
+
+  const payload = {
+    group: "B",
+    timestamp: new Date().toISOString(),
+    studentId: document.getElementById('studentId').value.trim(),
+    level: document.querySelector('input[name="level"]:checked').value,
+    experience: document.querySelector('input[name="exp"]:checked').value,
+    lines1: document.getElementById('lines1').value.trim(),
+    count1: document.getElementById('count1').value,
+    explain1: document.getElementById('explain1').value.trim(),
+    checklistRead: "Yes",
+    lines2: document.getElementById('lines2').value.trim(),
+    count2: document.getElementById('count2').value,
+    explain2: document.getElementById('explain2').value.trim(),
+  };
+
+  try {
+    await fetch(SHEET_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    document.getElementById('main-form').style.display = 'none';
+    document.getElementById('successScreen').style.display = 'block';
+    window.scrollTo(0, 0);
+  } catch (e) {
+    btn.disabled = false;
+    btnText.textContent = 'Submit my responses';
+    spinner.style.display = 'none';
+    errEl.textContent = 'Connection error. Please check your internet and try again.';
+    errEl.style.display = 'block';
+  }
+}
+</script>
+</body>
+</html>
